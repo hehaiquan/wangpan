@@ -1,0 +1,28 @@
+<%- include('partials/header') %>
+<div class="login-layout">
+  <section class="login-intro">
+    <a class="brand login-brand" href="/login"><span class="brand-mark"><%- include('partials/icon', { name: 'cloud' }) %></span><span>云盘<span class="brand-en">SHARED SPACE</span></span></a>
+    <div class="intro-copy"><span class="eyebrow">让分享回归简单</span><h1>你的文件，<br>有序相聚。</h1><p>连接团队的共享空间。<br>轻松查找所需文件，随时下载取用。</p></div>
+    <div class="file-illustration" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="illustration-center"><%- include('partials/icon', { name: 'folder' }) %></div><span class="floating-file float-one"><%- include('partials/icon', { name: 'file' }) %>文档</span><span class="floating-file float-two"><%- include('partials/icon', { name: 'download' }) %>随时取用</span><span class="illustration-dot"></span></div>
+    <div class="intro-footer"><span class="status-dot"></span> 一个空间，连接每一份文件</div>
+  </section>
+  <section class="login-panel">
+    <div class="login-card">
+      <div class="login-symbol"><%- include('partials/icon', { name: 'lock' }) %></div>
+      <h2>欢迎回来</h2><p class="muted login-description">登录账号，进入你的文件空间</p>
+      <% if (notice) { %><div class="notice" role="status"><%= notice %></div><% } %>
+      <% if (error) { %><div class="alert" role="alert"><%= error %></div><% } %>
+      <form action="/login" method="post" class="stack-form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <label for="username">用户名</label>
+        <input id="username" name="username" value="<%= username %>" placeholder="请输入用户名" required maxlength="64" autocomplete="username" autofocus>
+        <label for="password">密码</label>
+        <div class="password-field"><input id="password" type="password" name="password" placeholder="请输入密码" required maxlength="128" autocomplete="current-password"><button type="button" class="icon-button" data-toggle-password="password" aria-label="显示密码" aria-pressed="false"><%- include('partials/icon', { name: 'eye' }) %></button></div>
+        <button class="button primary login-submit" type="submit">登录文件空间 <%- include('partials/icon', { name: 'arrow' }) %></button>
+      </form>
+      <p class="login-help">账号和密码由管理员统一管理</p>
+    </div>
+    <footer class="login-footer">云盘 · 共享文件空间</footer>
+  </section>
+</div>
+<%- include('partials/footer') %>

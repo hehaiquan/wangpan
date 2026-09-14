@@ -1,0 +1,26 @@
+<%- include('partials/header') %>
+<% const isLogin = type === 'login'; const route = isLogin ? '/admin/login-logs' : '/admin/download-logs'; %>
+<section class="page-heading"><div><span class="eyebrow">ACTIVITY LOG</span><h1><%= title %></h1><p><%= isLogin ? '查看每一次登录，了解账号访问情况。' : '查看文件下载操作与服务端传输结果。' %></p></div><span class="timezone-label"><%- include('partials/icon', { name: 'clock' }) %>北京时间 · UTC+8</span></section>
+<section class="panel">
+  <form method="get" action="<%= route %>" class="filter-form">
+    <div><label for="filter-username">账号</label><input id="filter-username" name="username" value="<%= filters.username %>" placeholder="完整用户名" maxlength="64"></div>
+    <div><label for="filter-ip">IP 地址</label><input id="filter-ip" name="ip" value="<%= filters.ip %>" placeholder="完整 IP 地址" maxlength="64"></div>
+    <div><label for="filter-from">开始日期</label><input id="filter-from" name="from" type="date" value="<%= filters.from %>"></div>
+    <div><label for="filter-to">结束日期</label><input id="filter-to" name="to" type="date" value="<%= filters.to %>"></div>
+    <div><label for="filter-result">操作结果</label><select id="filter-result" name="result"><option value="">全部结果</option><% for (const result of (isLogin ? ['success', 'failed', 'limited'] : ['started', 'completed', 'failed', 'interrupted'])) { %><option value="<%= result %>" <%= filters.result === result ? 'selected' : '' %>><%= resultLabels[result] %></option><% } %></select></div>
+    <div class="filter-actions"><button type="submit" class="button primary">查询</button><a class="button secondary" href="<%= route %>">重置</a></div>
+  </form>
+  <div class="table-scroll"><table class="data-table log-table"><thead><tr><th>账号</th><% if (!isLogin) { %><th>下载文件</th><% } %><th>IP 地址</th><th><%= isLogin ? '登录时间' : '开始 / 结束时间' %></th><th>操作结果</th><th>详细信息</th></tr></thead><tbody>
+  <% for (const row of rows) { %><tr>
+    <td><strong><%= row.username || '未填写账号' %></strong></td>
+    <% if (!isLogin) { %><td class="log-file"><strong><%= row.file_name || '无效路径' %></strong><small title="<%= row.relative_path %>"><%= row.relative_path || '—' %></small><small><%= formatSize(row.file_size) %></small></td><% } %>
+    <td class="ip-cell"><%= row.ip %></td>
+    <td class="time-cell"><%= formatTime(isLogin ? row.created_at : row.started_at) %><% if (!isLogin) { %><small><%= formatTime(row.ended_at) %></small><% } %></td>
+    <td><span class="result-badge <%= row.result %>"><span class="status-dot"></span><%= resultLabels[row.result] %></span></td>
+    <td class="log-detail"><% if (row.reason) { %><span><%= row.reason %></span><% } %><details><summary>客户端信息</summary><p><%= row.user_agent || '未提供 User-Agent' %></p></details></td>
+  </tr><% } %>
+  <% if (!rows.length) { %><tr><td colspan="<%= isLogin ? 5 : 6 %>"><div class="empty-state"><span class="empty-icon"><%- include('partials/icon', { name: 'clock' }) %></span><h2>暂无匹配的记录</h2><p>操作记录会显示在这里，也可以调整筛选条件。</p></div></td></tr><% } %>
+  </tbody></table></div>
+  <%- include('partials/pagination', { total, page, pages, route, parameters: filters }) %>
+</section>
+<%- include('partials/footer') %>

@@ -1,0 +1,26 @@
+{
+  "name": "wangpan",
+  "version": "1.0.0",
+  "private": true,
+  "description": "使用 SQLite 保存账号和审计记录的轻量共享网盘",
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "init-db": "node scripts/init-db.js",
+    "setup": "node scripts/setup.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "check": "node scripts/check.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "13.0.3",
+    "content-disposition": "3.0.0",
+    "ejs": "3.1.10",
+    "express": "5.2.1",
+    "express-session": "1.19.0",
+    "helmet": "8.3.0"
+  }
+}

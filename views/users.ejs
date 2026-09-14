@@ -1,0 +1,34 @@
+<%- include('partials/header') %>
+<section class="page-heading"><div><span class="eyebrow">ACCOUNT MANAGEMENT</span><h1>用户管理</h1><p>统一管理账号、访问状态和登录密码。</p></div><button class="button primary" type="button" data-open-dialog="create-user-dialog"><%- include('partials/icon', { name: 'plus' }) %>创建账号</button></section>
+<section class="panel">
+  <div class="panel-toolbar"><div class="panel-title"><h2>全部账号</h2><span class="count-badge"><%= total %></span></div><span class="muted toolbar-hint"><%- include('partials/icon', { name: 'shield' }) %>密码仅由管理员修改</span></div>
+  <div class="table-scroll"><table class="data-table users-table"><thead><tr><th>账号</th><th>角色</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>
+  <% for (const user of users) { %><tr>
+    <td><div class="user-cell"><span class="avatar <%= user.role === 'admin' ? 'admin-avatar' : '' %>"><%= user.username.slice(0, 1).toUpperCase() %></span><strong><%= user.username %></strong><% if (user.id === currentUser.id) { %><span class="self-label">本人</span><% } %></div></td>
+    <td><span class="role-badge <%= user.role %>"><%= user.role === 'admin' ? '管理员' : '普通用户' %></span></td>
+    <td><span class="status-label <%= user.enabled ? 'enabled' : 'disabled' %>"><span class="status-dot"></span><%= user.enabled ? '已启用' : '已禁用' %></span></td>
+    <td class="time-cell"><%= formatTime(user.created_at) %></td>
+    <td><div class="row-actions"><button class="text-button" type="button" data-password-url="/admin/users/<%= user.id %>/password" data-username="<%= user.username %>">修改密码</button><span class="action-divider"></span><form method="post" action="/admin/users/<%= user.id %>/status"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="enabled" value="<%= user.enabled ? '0' : '1' %>"><button class="text-button <%= user.enabled ? 'danger-text' : '' %>" type="submit"><%= user.enabled ? '禁用' : '启用' %></button></form></div></td>
+  </tr><% } %>
+  </tbody></table></div>
+  <%- include('partials/pagination', { total, page, pages, route: '/admin/users', parameters: {} }) %>
+</section>
+<dialog id="create-user-dialog" class="modal">
+  <div class="modal-heading"><div><span class="eyebrow">NEW ACCOUNT</span><h2>创建账号</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭"><%- include('partials/icon', { name: 'close' }) %></button></div>
+  <form action="/admin/users" method="post" class="stack-form"><input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label for="new-username">用户名</label><input id="new-username" name="username" required minlength="2" maxlength="32" autocomplete="off" placeholder="2–32 位中文、字母或数字">
+    <label for="new-role">角色</label><select id="new-role" name="role"><option value="user">普通用户</option><option value="admin">管理员</option></select>
+    <label for="new-password">初始密码</label><input id="new-password" name="password" type="password" required minlength="6" maxlength="128" autocomplete="new-password" placeholder="请输入 6–128 位密码">
+    <div class="modal-actions"><button class="button secondary" type="button" data-close-dialog>取消</button><button class="button primary" type="submit">创建账号</button></div>
+  </form>
+</dialog>
+<dialog id="password-dialog" class="modal">
+  <div class="modal-heading"><div><span class="eyebrow">ACCOUNT PASSWORD</span><h2>修改密码</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭"><%- include('partials/icon', { name: 'close' }) %></button></div>
+  <p class="muted" id="password-target"></p>
+  <form id="password-form" method="post" class="stack-form"><input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label for="changed-password">新密码</label><input id="changed-password" name="password" type="password" required minlength="6" maxlength="128" autocomplete="new-password" placeholder="请输入 6–128 位密码">
+    <p class="form-hint">修改后，该账号需要使用新密码重新登录。</p>
+    <div class="modal-actions"><button class="button secondary" type="button" data-close-dialog>取消</button><button class="button primary" type="submit">保存密码</button></div>
+  </form>
+</dialog>
+<%- include('partials/footer') %>

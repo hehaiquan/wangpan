@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title><%= title %> · 云盘</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">跳至主要内容</a>
+<% if (currentUser) { %>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="/files"><span class="brand-mark"><%- include('icon', { name: 'cloud' }) %></span><span>云盘<span class="brand-en">SHARED SPACE</span></span></a>
+    <div class="nav-label">工作空间</div>
+    <nav aria-label="主导航" class="navigation">
+      <a class="nav-item <%= activePage === 'files' ? 'active' : '' %>" href="/files" <%- activePage === 'files' ? 'aria-current="page"' : '' %>><%- include('icon', { name: 'folder' }) %><span>文件空间</span></a>
+      <% if (currentUser.role === 'admin') { %>
+      <div class="nav-label admin-label">管理中心</div>
+      <a class="nav-item <%= activePage === 'users' ? 'active' : '' %>" href="/admin/users"><%- include('icon', { name: 'users' }) %><span>用户管理</span></a>
+      <a class="nav-item <%= activePage === 'login-logs' ? 'active' : '' %>" href="/admin/login-logs"><%- include('icon', { name: 'clock' }) %><span>登录记录</span></a>
+      <a class="nav-item <%= activePage === 'download-logs' ? 'active' : '' %>" href="/admin/download-logs"><%- include('icon', { name: 'download' }) %><span>下载记录</span></a>
+      <% } %>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="space-note"><span class="status-dot"></span> 共享空间<span>让文件触手可及</span></div>
+      <div class="profile">
+        <span class="avatar"><%= currentUser.username.slice(0, 1).toUpperCase() %></span>
+        <span class="profile-text"><strong><%= currentUser.username %></strong><small><%= currentUser.role === 'admin' ? '管理员' : '普通用户' %></small></span>
+        <form action="/logout" method="post"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="icon-button" type="submit" title="退出登录" aria-label="退出登录"><%- include('icon', { name: 'logout' }) %></button></form>
+      </div>
+    </div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><span>工作空间 <span class="separator">/</span> <strong><%= title %></strong></span><span class="topbar-tag"><%- include('icon', { name: 'shield' }) %>已登录</span></header>
+    <main id="main-content" class="main-content">
+      <% if (notice) { %><div class="notice" role="status"><%- include('icon', { name: 'check' }) %><%= notice %></div><% } %>
+<% } else { %>
+<main id="main-content" class="guest-shell">
+<% } %>

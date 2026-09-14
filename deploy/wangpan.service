@@ -1,0 +1,25 @@
+[Unit]
+Description=Wangpan shared file service
+After=network.target
+
+[Service]
+Type=simple
+User=wangpan
+Group=wangpan
+WorkingDirectory=/opt/wangpan
+EnvironmentFile=/opt/wangpan/.env
+ExecStart=/opt/node-v24/bin/node /opt/wangpan/src/server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/wangpan
+ReadOnlyPaths=/srv/wangpan/files
+
+[Install]
+WantedBy=multi-user.target

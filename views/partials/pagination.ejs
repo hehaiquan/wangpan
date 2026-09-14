@@ -1,0 +1,8 @@
+<div class="pagination">
+  <span>共 <strong><%= total %></strong> 条记录</span>
+  <div class="page-controls">
+    <% if (page > 1) { %><a class="button small secondary" href="<%= linkTo(route, { ...parameters, page: page - 1 }) %>">上一页</a><% } else { %><button class="button small secondary" disabled>上一页</button><% } %>
+    <span><strong><%= page %></strong> / <%= pages %></span>
+    <% if (page < pages) { %><a class="button small secondary" href="<%= linkTo(route, { ...parameters, page: page + 1 }) %>">下一页</a><% } else { %><button class="button small secondary" disabled>下一页</button><% } %>
+  </div>
+</div>

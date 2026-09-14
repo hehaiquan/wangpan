@@ -1,0 +1,52 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fixture, Client } from './helpers.js';
+import { loadConfig, projectRoot } from '../src/config.js';
+
+test('配置校验拒绝项目目录、数据库目录和通过链接暴露的数据库', async t => {
+  const f = await fixture(t);
+  const env = { FILE_ROOT: f.fileRoot, SQLITE_PATH: f.config.databasePath, SESSION_SECRET: f.config.sessionSecret };
+  assert.equal(loadConfig(env).port, 3000);
+  assert.equal(loadConfig(env).sessionMs, 8 * 3600000);
+  assert.throws(() => loadConfig({ ...env, FILE_ROOT: projectRoot }), /不能包含/);
+  assert.throws(() => loadConfig({ ...env, SQLITE_PATH: path.join(f.fileRoot, 'data.sqlite') }), /不能包含/);
+  assert.throws(() => loadConfig({ ...env, SESSION_SECRET: 'short' }), /SESSION_SECRET/);
+  assert.throws(() => loadConfig({ ...env, TRUST_PROXY: 'true' }), /TRUST_PROXY/);
+  assert.throws(() => loadConfig({ ...env, TRUST_PROXY: '0.0.0.0/0' }), /TRUST_PROXY/);
+  assert.throws(() => loadConfig({ ...env, PORT: '70000' }), /PORT/);
+  assert.throws(() => loadConfig({ ...env, COOKIE_SECURE: 'yes' }), /COOKIE_SECURE/);
+  const link = path.join(f.directory, 'database-alias');
+  await fs.symlink(f.fileRoot, link);
+  assert.throws(() => loadConfig({ ...env, SQLITE_PATH: path.join(link, 'private.sqlite') }), /不能包含/);
+});
+
+test('管理员日志页面支持账号、IP、结果、北京时间日期及分页筛选', async t => {
+  const f = await fixture(t, { pageSize: 2 });
+  const admin = new Client(f);
+  await admin.login();
+  const insert = f.db.prepare('INSERT INTO login_logs (user_id, username, ip, user_agent, created_at, result, reason) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  insert.run(2, 'user', '203.0.113.20', '<img src=x onerror=alert(1)>', '2026-09-11T16:01:00.000Z', 'failed', '密码错误');
+  insert.run(2, 'user', '203.0.113.20', 'test', '2026-09-12T15:59:59.000Z', 'failed', '密码错误');
+  insert.run(2, 'user', '203.0.113.20', 'test', '2026-09-12T16:00:00.000Z', 'failed', '密码错误');
+  const route = '/admin/login-logs?username=user&ip=203.0.113.20&result=failed&from=2026-09-12&to=2026-09-12';
+  const filtered = await admin.request(route);
+  assert.equal(filtered.status, 200);
+  assert.match(filtered.text, /共 <strong>2<\/strong> 条记录/);
+  assert.ok(filtered.text.includes('2026-09-12 00:01:00'));
+  assert.ok(filtered.text.includes('2026-09-12 23:59:59'));
+  assert.ok(filtered.text.includes('&lt;img src=x onerror=alert(1)&gt;'));
+  assert.ok(!filtered.text.includes('<img src=x onerror=alert(1)>'));
+  const paged = await admin.request('/admin/login-logs?username=user&page=2');
+  assert.equal(paged.status, 200);
+  assert.match(paged.text, /共 <strong>3<\/strong> 条记录/);
+  assert.equal((await admin.request('/admin/login-logs?from=2026-02-30')).status, 400);
+  assert.equal((await admin.request('/admin/login-logs?from=2026-09-13&to=2026-09-12')).status, 400);
+  assert.equal((await admin.request('/admin/login-logs?result=unknown')).status, 400);
+  const injection = await admin.request('/admin/login-logs?username=' + encodeURIComponent("' OR 1=1 --"));
+  assert.match(injection.text, /共 <strong>0<\/strong> 条记录/);
+  const downloads = await admin.request('/admin/download-logs');
+  assert.equal(downloads.status, 200);
+  assert.ok(downloads.text.includes('暂无匹配的记录'));
+});
