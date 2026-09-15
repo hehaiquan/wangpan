@@ -11,11 +11,12 @@ import { openDatabase, initializeAccounts, recoverDatabase } from './database.js
 import { SQLiteSessionStore } from './session-store.js';
 import { hashPassword, validatePassword, verifyPassword } from './password.js';
 import { AppError } from './errors.js';
-import { listDirectory, openDownload, fileError } from './files.js';
+import { listDirectory, openDownload, fileError, deleteEntry, normalizeRelativePath } from './files.js';
 import { formatTime, formatSize, linkTo, pageNumber, queryText, queryLogs, resultLabels } from './view-helpers.js';
 
 const COOKIE_NAME = 'wangpan.sid';
 const notices = {
+  deleted: '删除成功',
   created: '账号已创建', password: '密码已修改，该账号需重新登录',
   enabled: '账号已启用', disabled: '账号已禁用，已有会话已撤销',
   relogin: '密码已修改，请使用新密码登录', expired: '登录已失效，请重新登录'
@@ -171,6 +172,15 @@ export async function createApp(config) {
     const query = queryText(req.query.q);
     const listing = await listDirectory(config.fileRoot, req.query.path ?? '', query, pageNumber(req.query.page), config.pageSize);
     res.render('files', { title: '文件空间', activePage: 'files', listing, query });
+  });
+
+  // /admin 中间件和全局 CSRF 校验共同保护删除接口，回跳参数在删除前完成校验。
+  app.post('/admin/files/delete', async (req, res) => {
+    const returnPath = normalizeRelativePath(req.body.returnPath ?? '');
+    const query = queryText(req.body.q);
+    const page = pageNumber(req.body.page);
+    await deleteEntry(config.fileRoot, req.body.path);
+    res.redirect(303, linkTo('/files', { path: returnPath, q: query, page, notice: 'deleted' }));
   });
 
   app.get('/download', requireAuth, async (req, res, next) => {

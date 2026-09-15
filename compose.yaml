@@ -16,7 +16,7 @@ services:
       - "3000:3000"
     volumes:
       - wangpan-data:/var/lib/wangpan
-      - /srv/wangpan/files:/srv/wangpan/files:ro
+      - /srv/wangpan/files:/srv/wangpan/files:rw
     read_only: true
     tmpfs:
       - /tmp

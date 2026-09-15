@@ -15,6 +15,18 @@ function initializePage() {
       document.getElementById('password-dialog').showModal();
     });
   });
+  document.querySelectorAll('[data-delete-path]').forEach(button => {
+    button.addEventListener('click', () => {
+      const form = document.getElementById('delete-form');
+      form.reset();
+      form.elements.path.value = button.dataset.deletePath;
+      document.getElementById('delete-target').textContent = button.dataset.deletePath;
+      document.getElementById('delete-description').textContent = button.dataset.deleteDirectory === 'true'
+        ? '将永久删除此文件夹及其中的所有文件和子文件夹。若该项为链接，仅删除链接本身。'
+        : '将永久删除此文件。若该项为链接，仅删除链接本身。';
+      document.getElementById('delete-dialog').showModal();
+    });
+  });
   document.querySelectorAll('[data-toggle-password]').forEach(button => {
     button.addEventListener('click', () => {
       const input = document.getElementById(button.dataset.togglePassword);

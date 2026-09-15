@@ -1,6 +1,6 @@
 # 麒麟 V10 Docker 部署说明
 
-适用目标：Kylin Linux Advanced Server V10 (Halberd)。容器使用 Node.js 24.21.0 和 Debian Bookworm 用户空间，宿主机无需安装 Node.js、npm 或 SQLite。前端不需要构建。运行单个应用容器，账号、会话和日志保存在 Docker 数据卷中，共享文件从宿主机只读挂载。
+适用目标：Kylin Linux Advanced Server V10 (Halberd)。容器使用 Node.js 24.21.0 和 Debian Bookworm 用户空间，宿主机无需安装 Node.js、npm 或 SQLite。前端不需要构建。运行单个应用容器，账号、会话和日志保存在 Docker 数据卷中，共享文件从宿主机可写挂载，以支持管理员删除。
 
 已确认目标服务器：aarch64、内核 4.19.90-89.26.v2401.ky10.aarch64、Docker Engine 20.10.24（linux/arm64）。镜像使用 linux/arm64；内核满足 Node.js 24 官方基线。尚未在目标麒麟服务器实际运行验证。未确认安装 Compose 时，可直接使用第 4 节的 docker run。
 
@@ -67,7 +67,7 @@ docker compose logs --tail=100 wangpan
 
 访问 `http://服务器IP:3000`。若本机可访问而其他机器无法访问，检查服务器的 3000/TCP 入站规则。首次空数据库账号沿用 [使用说明](使用说明.md)，已有账号不会被覆盖。
 
-修改共享目录时，调整 `compose.yaml` 挂载项左侧的宿主机路径，右侧容器路径保持 `/srv/wangpan/files`。若启用了 SELinux 且出现挂载权限拒绝，核对该专用共享目录的标签；可按现场策略将挂载后缀由 `:ro` 调整为 `:ro,Z`，仅对专用目录使用。
+修改共享目录时，调整 `compose.yaml` 挂载项左侧的宿主机路径，右侧容器路径保持 `/srv/wangpan/files`。若启用了 SELinux 且出现挂载权限拒绝，核对该专用共享目录的标签；可按现场策略将挂载后缀由 `:rw` 调整为 `:rw,Z`，仅对专用目录使用。
 
 ## 4. 没有 Compose 时
 
@@ -80,7 +80,7 @@ docker run -d --name wangpan --restart unless-stopped \
   --env-file .env.docker \
   -p 3000:3000 \
   --mount type=volume,source=wangpan-data,target=/var/lib/wangpan \
-  --mount type=bind,source=/srv/wangpan/files,target=/srv/wangpan/files,readonly \
+  --mount type=bind,source=/srv/wangpan/files,target=/srv/wangpan/files \
   --read-only --tmpfs /tmp --stop-timeout 30 \
   wangpan:1.0.0-arm64
 docker logs --tail=100 wangpan
@@ -125,3 +125,5 @@ docker compose logs --tail=100 wangpan
 2026-09-14 在本机 Docker Desktop 29.2.0 的 Linux ARM64 容器中完成验证：Node.js 24.21.0，better-sqlite3 13.0.3，现有 15 项集成测试全部通过；容器启动和健康探测、UID 1000、中文共享文件读取、只读挂载、SQLite quick_check，以及删除并重建容器后账号停用状态保留均通过。临时验证容器、数据卷和文件已清理。
 
 导出归档已核对为 linux/arm64，镜像标签为 wangpan:1.0.0-arm64。以上不等于已在目标麒麟内核及 Docker 20.10.24 上验收，现场仍需完成登录、下载和重启检查。
+
+管理员删除要求共享目录可写挂载，且 UID 1000 对相关目录有写入和遍历权限。旧容器修改挂载后需重新创建，操作见 [搜索与删除更新说明](搜索与删除更新说明.md)。

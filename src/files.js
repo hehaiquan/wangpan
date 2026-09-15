@@ -39,32 +39,49 @@ export async function resolveFile(root, input, kind) {
   }
 }
 
-/** 读取当前目录并限制元数据查询并发，避免大目录耗尽文件句柄。 */
+/** 浏览当前目录；有关键词时遍历子目录，跳过目录链接以避免循环和重复搜索。 */
 export async function listDirectory(root, input, query = '', requestedPage = 1, pageSize = 30) {
   const directory = await resolveFile(root, input, 'directory');
-  let entries;
-  try {
-    entries = await fs.readdir(directory.real, { withFileTypes: true });
-  } catch (error) {
-    throw fileError(error);
-  }
-  const candidates = entries.filter(entry => !['.gitkeep', '.DS_Store'].includes(entry.name) && !/[\x00-\x1f\x7f\\]/.test(entry.name) && entry.name.toLocaleLowerCase('zh-CN').includes(query.toLocaleLowerCase('zh-CN')));
+  const keyword = query.toLocaleLowerCase('zh-CN');
+  const pending = [directory.relative];
+  const visited = new Set();
   const visible = [];
-  for (let offset = 0; offset < candidates.length; offset += 32) {
-    const batch = await Promise.all(candidates.slice(offset, offset + 32).map(async entry => {
-      const relative = [directory.relative, entry.name].filter(Boolean).join('/');
-      try {
-        const item = await resolveFile(root, relative);
-        if (!item.stat.isFile() && !item.stat.isDirectory()) return null;
-        return { name: entry.name, relative, isDirectory: item.stat.isDirectory(), size: item.stat.size, modified: item.stat.mtime.toISOString() };
-      } catch (error) {
-        if (error.status === 403 || error.status === 404) return null;
-        throw error;
+  let skippedDirectories = 0;
+  while (pending.length) {
+    const current = pending.pop();
+    let entries;
+    try {
+      const resolved = await resolveFile(root, current, 'directory');
+      if (visited.has(resolved.real)) continue;
+      visited.add(resolved.real);
+      entries = await fs.readdir(resolved.real, { withFileTypes: true });
+    } catch (error) {
+      const failure = fileError(error);
+      if (current !== directory.relative && [403, 404].includes(failure.status)) {
+        skippedDirectories += 1;
+        continue;
       }
-    }));
-    visible.push(...batch.filter(Boolean));
+      throw failure;
+    }
+    const candidates = entries.filter(entry => !['.gitkeep', '.DS_Store'].includes(entry.name) && !/[\x00-\x1f\x7f\\]/.test(entry.name));
+    for (let offset = 0; offset < candidates.length; offset += 32) {
+      const batch = await Promise.all(candidates.slice(offset, offset + 32).map(async entry => {
+        const relative = [current, entry.name].filter(Boolean).join('/');
+        try {
+          const item = await resolveFile(root, relative);
+          if (!item.stat.isFile() && !item.stat.isDirectory()) return null;
+          if (keyword && entry.isDirectory()) pending.push(relative);
+          if (!entry.name.toLocaleLowerCase('zh-CN').includes(keyword)) return null;
+          return { name: entry.name, relative, isDirectory: item.stat.isDirectory(), size: item.stat.size, modified: item.stat.mtime.toISOString() };
+        } catch (error) {
+          if (error.status === 403 || error.status === 404) return null;
+          throw error;
+        }
+      }));
+      visible.push(...batch.filter(Boolean));
+    }
   }
-  visible.sort((a, b) => Number(b.isDirectory) - Number(a.isDirectory) || a.name.localeCompare(b.name, 'zh-CN', { numeric: true }));
+  visible.sort((a, b) => Number(b.isDirectory) - Number(a.isDirectory) || a.name.localeCompare(b.name, 'zh-CN', { numeric: true }) || a.relative.localeCompare(b.relative, 'zh-CN', { numeric: true }));
   const total = visible.length;
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(requestedPage, pages);
@@ -72,12 +89,43 @@ export async function listDirectory(root, input, query = '', requestedPage = 1, 
     relative: directory.relative,
     parent: path.posix.dirname(directory.relative) === '.' ? '' : path.posix.dirname(directory.relative),
     items: visible.slice((page - 1) * pageSize, page * pageSize),
-    total, page, pages,
+    total, page, pages, skippedDirectories,
     folderCount: visible.filter(item => item.isDirectory).length,
     fileCount: visible.filter(item => !item.isDirectory).length,
     fileBytes: visible.filter(item => !item.isDirectory).reduce((sum, item) => sum + item.size, 0),
     breadcrumbs: directory.relative.split('/').filter(Boolean).map((name, index, parts) => ({ name, relative: parts.slice(0, index + 1).join('/') }))
   };
+}
+
+/** 删除共享根下的文件或整个目录；拒绝通过目录链接删除，末级链接仅删除链接本身。 */
+export async function deleteEntry(root, input) {
+  try {
+    const relative = normalizeRelativePath(input);
+    if (!relative) throw new AppError(403, '不能删除共享根目录');
+    const parts = relative.split('/');
+    let parent = root;
+    for (const part of parts.slice(0, -1)) {
+      parent = path.join(parent, part);
+      const stat = await fs.lstat(parent);
+      if (stat.isSymbolicLink()) throw new AppError(403, '不能通过目录链接删除文件，请进入实际目录操作');
+      if (!stat.isDirectory()) throw new AppError(404, '文件或目录不存在，请刷新后重试');
+    }
+    const realParent = await fs.realpath(parent);
+    if (!isInside(root, realParent)) throw new AppError(403, '不能删除共享目录以外的文件');
+    const target = path.join(realParent, parts.at(-1));
+    const stat = await fs.lstat(target);
+    if (stat.isSymbolicLink()) await fs.unlink(target);
+    else if (stat.isDirectory()) await fs.rm(target, { recursive: true });
+    else if (stat.isFile()) await fs.unlink(target);
+    else throw new AppError(400, '只能删除普通文件、文件夹或链接');
+    return relative;
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    if (error.code === 'EROFS') throw new AppError(403, '共享目录为只读挂载，无法删除，请将共享目录改为可写后重试');
+    if (['EACCES', 'EPERM'].includes(error.code)) throw new AppError(403, '没有删除权限，请检查服务进程对目录的写入权限；文件夹内容可能已部分删除，请刷新查看');
+    if (['ENOENT', 'ENOTDIR', 'ELOOP'].includes(error.code)) throw fileError(error);
+    throw new AppError(500, '删除未完成，请刷新查看文件状态后重试');
+  }
 }
 
 /** 打开并固定下载句柄，检查打开前后文件身份，减少路径替换带来的竞态。 */
