@@ -1,0 +1,13 @@
+# 仅向构建上下文发送运行所需源码，排除本机配置、数据库和依赖。
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!src/
+!src/**
+!views/
+!views/**
+!public/
+!public/**
+!scripts/
+!scripts/**

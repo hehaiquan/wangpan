@@ -1,0 +1,27 @@
+services:
+  wangpan:
+    image: wangpan:1.0.0-arm64
+    platform: linux/arm64
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      FILE_ROOT: /srv/wangpan/files
+      SQLITE_PATH: /var/lib/wangpan/wangpan.sqlite
+    ports:
+      - "3000:3000"
+    volumes:
+      - wangpan-data:/var/lib/wangpan
+      - /srv/wangpan/files:/srv/wangpan/files:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    stop_grace_period: 30s
+
+volumes:
+  wangpan-data:
+    name: wangpan-data

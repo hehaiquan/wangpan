@@ -1,5 +1,7 @@
 node_modules/
 .env
+.env.docker
+/release/
 .runtime/
 .cache/
 data/
@@ -11,3 +13,6 @@ test-results/
 *.sqlite-wal
 *.log
 .DS_Store
+docs/ARM64安装包推送说明.md
+docs/x86_64旧内核Docker部署说明.md
+scripts/push-package.sh
